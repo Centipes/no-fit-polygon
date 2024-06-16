@@ -282,7 +282,14 @@ def find_touching_points(A, B, A_index):
 
     return touching, A_index
 
-
+def is_point_on_line_segment(nfp_point1, nfp_point2, point):
+    if not almost_equal((point['x'] - nfp_point1['x']) * (nfp_point2['y'] - nfp_point1['y']), (point['y'] - nfp_point1['y']) * (nfp_point2['x'] - nfp_point1['x'])):
+        return False
+    
+    if min(nfp_point1['x'], nfp_point2['x']) <= point['x'] <= max(nfp_point1['x'], nfp_point2['x']) and min(nfp_point1['y'], nfp_point2['y']) <= point['y'] <= max(nfp_point1['y'], nfp_point2['y']):
+        return True
+    
+    return False
 
 def nfp_polygon(A, B, inside=True):
     """
@@ -304,10 +311,9 @@ def nfp_polygon(A, B, inside=True):
 
     for i in range(1, len(A['points'])):
         A['points'][i]['marked'] = False
-        if A['points'][i]['y'] <= min_a:
-            if(A['points'][i]['x']>A['points'][min_a_index]['x']):
-                min_a = A['points'][i]['y']
-                min_a_index = i
+        if A['points'][i]['y'] < min_a:
+            min_a = A['points'][i]['y']
+            min_a_index = i
 
     for i in range(1, len(B['points'])):
         B['points'][i]['marked'] = False
@@ -374,10 +380,10 @@ def nfp_polygon(A, B, inside=True):
 
             # if A and B start on a touching horizontal line, the end point may not be the start point
             looped = False
-            if len(NFP) > 0:
-                for i in range(0, len(NFP)-1):
-                    if almost_equal(reference['x'], NFP[i]['x'] and almost_equal(reference['y'], NFP[i]['y'])):
-                        looped = True
+            if len(NFP) > 1:
+                if is_point_on_line_segment(NFP[-1], reference, NFP[0]):
+                    break
+                    
 
             if looped:
                 # we've made a full loop
@@ -392,8 +398,9 @@ def nfp_polygon(A, B, inside=True):
 
         if NFP and len(NFP) > 0:
             NFP_list.append(NFP)
-
-        start_point = search_start_point(A, B, inside, NFP_list)
+       
+        if(start_point is None):
+            start_point = search_start_point(A, B, inside, NFP_list)
         
     return NFP_list
 
@@ -891,6 +898,10 @@ if __name__ == "__main__":
     A = {'points': [{'x': 6, 'y': 2}, {'x': 6, 'y': 4}, {'x': 8, 'y': 4}, {'x': 8, 'y': 2}]}
     B = {'points': [{'x': 0, 'y': 0}, {'x': 0, 'y': 2}, {'x': 2, 'y': 2}, {'x': 2, 'y': 0}]}
 
+    # Test 5
+    A = {'points': [{'x': 0.0, 'y': 2.0}, {'x': 7.0, 'y': 0.0}, {'x': 8.0, 'y': 2.0}, {'x': 8.0, 'y': 3.0},{'x': 9.0, 'y': 4.0}, {'x': 8.0, 'y': 5.0}, {'x': 7.0, 'y': 7.0}, {'x': 0.0, 'y': 6.0}]}
+    B = {'points': [{'x': 0.0, 'y': -7.0}, {'x': 1.0, 'y': -8.0}, {'x': 2.0, 'y': -10.0}, {'x': 9.0, 'y': -9.0}, {'x': 9.0, 'y': -5.0}, {'x': 2.0, 'y': -3.0}, {'x': 1.0, 'y': -5.0}, {'x': 1.0, 'y': -6.0}]}
+
     if polygon_area(A['points']) < 0:
         A['points'].reverse()
     if polygon_area(B['points']) < 0:
@@ -915,18 +926,35 @@ if __name__ == "__main__":
                 if polygon_area(nfp[i]) < 0:
                     nfp[i].reverse()
 
+    x_list_A = [path['x'] for path in A['points']]
+    y_list_A = [path['y'] for path in A['points']]
+    x_list_B = [path['x'] for path in B['points']]
+    y_list_B = [path['y'] for path in B['points']]
+    max_x = max(max(x_list_A),max(x_list_B))
+    min_x = min(min(x_list_A),min(x_list_B))
+    max_y = max(max(y_list_A),max(y_list_B))
+    min_y = min(min(y_list_A),min(y_list_B))
+
     for nf in nfp:
         path_list = []
 
         for path in nf:
             path_list.append((path['x'], path['y']))
+            if(min_x > path['x']):
+                min_x = path['x']
+            elif(max_x < path['x']):
+                max_x = path['x']
+            if(min_y > path['y']):
+                min_y = path['y']
+            elif(max_y < path['y']):
+                max_y = path['y']
        
         polygon = matplotlibPolygon(path_list, closed=True, fill=None, edgecolor='#19692F')
         polygon.set_linewidth(2)
 
         ax.add_patch(polygon)
 
-    plt.xlim(-6, 12)
-    plt.ylim(-4, 12)
+    plt.xlim(min_x-1, max_x+1)
+    plt.ylim(min_y-1, max_y+1)
 
     plt.show()
